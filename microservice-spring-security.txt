@@ -199,3 +199,289 @@ public class AppSecurityConfig {
 
 }
 
+Example 3: Create User Registration Implementation
+-----------------------------------------------------
+Step 1: Create Entity Class with Name User.java
+-------------------------------------------------
+package com.authservice.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name="user")
+public class User {
+	
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private long id;
+	
+	@Column(name="name", nullable = false)
+	private String name;
+	
+	@Column(name="username", nullable = false, unique = true)
+	private String username;
+	
+	@Column(name="email", nullable = false, unique = true)
+	private String email;
+	
+	@Column(name = "password")
+	private String password;
+
+	public long getId() {
+		return id;
+	}
+
+	public void setId(long id) {
+		this.id = id;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(String username) {
+		this.username = username;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	
+	
+	
+
+}
+
+---------------------------------------------------------------------------------------------------------------
+Step 2: Create Repository - UserRepository.java
+----------------------------------------------------------------------------------------------------------------
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.authservice.entity.User;
+
+public interface UserRepository extends JpaRepository<User, Long>{
+	
+	
+	User findByUsername(String username);
+	User findByEmail(String email);
+	boolean existsByUsername(String username);
+	boolean existsByEmail(String email);
+}
+
+------------------------------------------------------------------------------------------------------------------
+Step 3: Create UserDto.java
+------------------------------------------------------------------------------------------------------------------
+public class UserDto {
+	
+	private long id;
+	
+	private String name;
+	
+	private String username;
+	
+	private String email;
+	
+	private String password;
+
+	public long getId() {
+		return id;
+	}
+
+	public void setId(long id) {
+		this.id = id;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(String username) {
+		this.username = username;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+}
+-------------------------------------------------------------------------------------------------------------------------
+Step 4: Create APIResponse class to send common response for API response, which will make front end integration common
+-------------------------------------------------------------------------------------------------------------------------
+public class APIResponse<T> {
+	
+	private String message;
+	private int status;
+	private T data;
+	
+	public String getMessage() {
+		return message;
+	}
+	public void setMessage(String message) {
+		this.message = message;
+	}
+	public int getStatus() {
+		return status;
+	}
+	public void setStatus(int status) {
+		this.status = status;
+	}
+	public T getData() {
+		return data;
+	}
+	public void setData(T data) {
+		this.data = data;
+	}
+	
+	
+	
+	
+
+}
+--------------------------------------------------------------------------------------------
+Step 5 - Create AuthService - Implement Logic for creating user
+---------------------------------------------------------------------------------------------
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import com.authservice.dto.APIResponse;
+import com.authservice.dto.UserDto;
+import com.authservice.entity.User;
+import com.authservice.repository.UserRepository;
+
+
+@Service
+public class AuthService {
+	
+	@Autowired
+	private UserRepository userRepository;
+	
+	@Autowired
+	private PasswordEncoder passwordEncoder;
+	
+	
+	public APIResponse<String> register(UserDto dto) {
+		
+		if(userRepository.existsByUsername(dto.getUsername())) {
+			APIResponse<String> response = new APIResponse<>();
+			response.setMessage("Registration Failed");
+			response.setStatus(500);
+			response.setData("User with username exists");
+			return response;
+		}
+		if(userRepository.existsByEmail(dto.getEmail())) {
+			APIResponse<String> response = new APIResponse<>();
+			response.setMessage("Registration Failed");
+			response.setStatus(500);
+			response.setData("User with Email Id exists");
+			return response;
+		}
+		
+		User user = new User();
+		BeanUtils.copyProperties(dto, user);
+		user.setPassword(passwordEncoder.encode(dto.getPassword()));
+		
+		userRepository.save(user);
+		
+		APIResponse<String> response = new APIResponse<>();
+		response.setMessage("Registration Done");
+		response.setStatus(201);
+		response.setData("User is registered");
+		
+		return response;
+		
+		
+	}
+
+}
+-------------------------------------------------------------------------------------------------
+Step 6: Disable csrf in config file to access api end point from different client like postman/swagger
+-----------------------------------------------------------------------------------------------------
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableWebSecurity
+public class AppSecurityConfig {
+	
+	@Bean
+	public PasswordEncoder getEncoder() {
+		return new BCryptPasswordEncoder();
+	}
+
+	
+	@Bean
+	public SecurityFilterChain securityConfig(HttpSecurity http) throws Exception {
+	    http
+	        .csrf(csrf -> csrf.disable())  // Disable CSRF
+	        .authorizeHttpRequests(auth -> 
+	            auth.anyRequest().permitAll()
+	        );
+
+	    return http.build();
+	}
+
+}
+------------------------------------------------------------------------------------------------------
+Step 7: Add Swagger dependency for generating API documentation
+------------------------------------------------------------------------------------------------------
+<dependency>
+    <groupId>org.springdoc</groupId>
+    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+    <version>2.5.0</version>
+</dependency>
+
+To Access Swagger - Run the Project
+
+http://localhost:8080/swagger-ui.html
+
+Or (sometimes):
+
+http://localhost:8080/swagger-ui/index.html
+-----------------------------------------------------------------------------------------------------------------------------
