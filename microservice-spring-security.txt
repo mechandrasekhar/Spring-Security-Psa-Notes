@@ -562,12 +562,8 @@ public class AuthController {
 	        return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
 	    }
 	 
-	 @PutMapping("/update-password")
-	 public ResponseEntity<APIResponse<String>> updatePassword(@RequestBody UpdatePasswordDto updatePasswordDto){
-		 APIResponse<String> response = authService.setNewPassword(updatePasswordDto);
-		return new ResponseEntity<>(response, HttpStatusCode.valueOf(response.getStatus()));
-	 }
-	 
+
+ 
 	 
 	 @PostMapping("/login")
 	 public ResponseEntity<APIResponse<String>> loginCheck(@RequestBody LoginDto loginDto){
